@@ -1,6 +1,8 @@
 var scene, camera, renderer, modelLevel, loader, sphere, Key;
 var gravity = true;
-
+var scat = 0;
+var planeScatX, planeScatZ;
+var bigSphere
 init();
 render();
 
@@ -22,18 +24,43 @@ function init(){
 
   webElementGl.appendChild(renderer.domElement);
 
-  var light = new THREE.DirectionalLight( 0xffffff);
+  var light = new THREE.SpotLight( 0xffffff);
   light.position.set(100,200,0);
   light.castShadow = true;
   scene.add(light);
 
 
+  var bigSphereG = new THREE.SphereGeometry(180,200,200);
+  var bigSphereM = new THREE.MeshBasicMaterial({
+    map: THREE.ImageUtils.loadTexture('model/texture-panaram.jpg'),
+    side: THREE.BackSide
+  })
+
+  bigSphere = new THREE.Mesh(bigSphereG,bigSphereM);
+  bigSphere.position.y = 40;
+  bigSphere.position.x = 50;
+  bigSphere.position.z = 40;
+
+  bigSphere.rotation.x = 27.1;
+  bigSphere.rotation.y = 54.8;
+  bigSphere.rotation.z = 51.4;
+
+  scene.add(bigSphere);
+
   function addSphere() {
     var sphereG = new THREE.SphereGeometry(2,20,20);
-    var sphereM = new THREE.MeshLambertMaterial({
-      color: 0xff3300,
-      side: THREE.FrontSide
-    });
+    // var sphereM = new THREE.MeshLambertMaterial({
+    //   color: 0xff3300,
+    //   emissive: 0xa4f70,
+    //   map: texture,
+    //   wireframe: true,
+    //   side: THREE.FrontSide
+    // });
+
+    var sphereM = new THREE.MeshBasicMaterial({
+      map: THREE.ImageUtils.loadTexture('model/texture.jpg'),
+    })
+
     sphere = new THREE.Mesh(sphereG, sphereM);
     sphere.castShadow = true;
     sphere.position.y = 10;
@@ -106,7 +133,13 @@ window.addEventListener('keydown',function(event){
 window.addEventListener( 'resize', onWindowResize, false );
 
 
+
+  
+
 };
+
+ 
+
 
 
 
@@ -114,19 +147,26 @@ function dynamo(){
   if (Key.isDown(Key.A)) {
     sphere.position.x += 1;
     sphere.rotation.z -= .3;
+    sphere.rotation.x = 0;
+    planeScatX = sphere.position.x;
   }
   if (Key.isDown(Key.D)) {
     sphere.position.x -= 1;
     sphere.rotation.z += .3;
-
+    sphere.rotation.x = 0;
+    planeScatX = sphere.position.x;
   }
-  if (Key.isDown(Key.W)) {
+  if (Key.isDown(Key.W)) {      
     sphere.position.z += 1;
     sphere.rotation.x += .3;
+    sphere.rotation.z = 0;
+    planeScatZ = sphere.position.z;
   }
   if (Key.isDown(Key.S)) {
     sphere.position.z -= 1;
     sphere.rotation.x -= .3;
+    sphere.rotation.z = 0;
+    planeScatZ = sphere.position.z;
   }
   if (Key.isDown(Key.SPACE)) {
 // проблема 
@@ -151,6 +191,106 @@ function dynamo(){
   camera.position.x = sphere.position.x + 10;
   camera.position.y = sphere.position.y + 30;
   camera.position.z = sphere.position.z -50;
+}
+
+
+function gravityPower() {
+  var rightRay = new THREE.Raycaster();
+  var leftRay = new THREE.Raycaster();
+  var frontRay = new THREE.Raycaster();
+  var backRay = new THREE.Raycaster();
+
+  rightRay.ray.direction.set(0,-1,0);
+  leftRay.ray.direction.set(0,-1,0);
+  frontRay.ray.direction.set(0,-1,0);
+  backRay.ray.direction.set(0,-1,0);
+
+  rightRay.ray.origin.copy(sphere.position);
+  rightRay.ray.origin.y += 5;
+  rightRay.ray.origin.x -= 2;
+
+  leftRay.ray.origin.copy(sphere.position);
+  leftRay.ray.origin.y += 5;
+  leftRay.ray.origin.x += 2;
+
+  frontRay.ray.origin.copy(sphere.position);
+  frontRay.ray.origin.y += 5;
+  frontRay.ray.origin.z += 2;
+
+  backRay.ray.origin.copy(sphere.position);
+  backRay.ray.origin.y += 5;
+  backRay.ray.origin.z -= 2;
+
+
+  var intersectR = rightRay.intersectObject(modelLevel);
+  var intersectL = leftRay.intersectObject(modelLevel);
+  var intersectF = frontRay.intersectObject(modelLevel);
+  var intersectB = backRay.intersectObject(modelLevel);
+
+
+
+  if (intersectR.length > 0 && intersectL.length > 0) {
+    
+    if (pleseDistans(intersectR) < pleseDistans(intersectL)) {
+      if (planeScatX > sphere.position.x) {
+        var speed = (planeScatX - sphere.position.x)/100;
+        sphere.position.x = sphere.position.x + ( 0.1 + speed ) ;
+        sphere.rotation.z = sphere.rotation.z - ( 0.1 + speed);
+        sphere.rotation.x = 0;
+      }else {
+        sphere.position.x = sphere.position.x + .1 ;
+        sphere.rotation.z -= .1;
+        sphere.rotation.x = 0;
+      }
+    } else if(pleseDistans(intersectR) > pleseDistans(intersectL)){
+      if (planeScatX > sphere.position.x) {
+        var speed = (planeScatX - sphere.position.x)/100;
+        sphere.position.x = sphere.position.x - ( 0.1 + speed ) ;
+        sphere.rotation.z = sphere.rotation.z + ( 0.1 + speed);
+        sphere.rotation.x = 0;
+      }else{
+        sphere.position.x = sphere.position.x - 0.1;
+        sphere.rotation.z += .1;
+        sphere.rotation.x = 0;
+      }
+      
+    }
+  }
+
+  if (intersectF.length > 0 && intersectB.length > 0) {
+    if (pleseDistans(intersectF) < pleseDistans(intersectB)) {
+
+      if (planeScatZ > sphere.position.z) {
+        var speed = (planeScatZ - sphere.position.z)/100;
+        sphere.position.z = sphere.position.z - ( 0.1 + speed ) ;
+        sphere.rotation.x = sphere.rotation.x - ( 0.1 + speed);
+        sphere.rotation.z = 0;
+      }else{
+      sphere.position.z = sphere.position.z - .1 ;
+      sphere.rotation.x -= .1;
+      sphere.rotation.z = 0;
+      }
+    } else if(pleseDistans(intersectF) > pleseDistans(intersectB)){
+
+
+      if (planeScatZ > sphere.position.z) {
+        var speed = (planeScatZ - sphere.position.z)/100;
+        sphere.position.z = sphere.position.z + ( 0.1 + speed ) ;
+        sphere.rotation.x = sphere.rotation.x + ( 0.1 + speed);
+        sphere.rotation.z = 0;
+      }else{
+      sphere.position.z = sphere.position.z + .1 ;
+      sphere.rotation.x += .1;
+      sphere.rotation.z = 0;
+      }
+    }
+  }
+  
+  function pleseDistans(arrObj) {
+    return ((arrObj[0].distance*1000) - (5*1000)).toFixed(0)/1;
+  }
+
+  
 }
 
 function onEarth() {
@@ -178,7 +318,10 @@ if (gravity) {
       sphere.position.y -= .3;
     }
   } else {
-    sphere.position.y -= 3;
+    sphere.position.y -= 2;
+    if (sphere.position.y < -50) {
+      sphere.position.set(0,0,0);
+    }
   }
 }
   
@@ -187,6 +330,7 @@ if (gravity) {
 
 
 function render() {
+  gravityPower();
   dynamo();
   onEarth()
   camera.lookAt(sphere.position);
